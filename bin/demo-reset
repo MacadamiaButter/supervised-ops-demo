@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Restore the pristine seeded demo state: 8 hand-crafted inquiries across
+# every status, plus a matching audit trail. Does NOT call the live LLM
+# (see app/seed.py) so it's instant and safe to run right before a
+# recording even if the brain happens to be down.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+./venv/bin/python -m app.seed

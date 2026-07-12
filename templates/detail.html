@@ -1,0 +1,59 @@
+<div class="detail-header">
+  <div>
+    <div class="detail-customer">{{ lead.customer_name }}</div>
+    <div class="detail-meta">{{ lead.customer_contact }} &middot; {{ lead.channel }} &middot; lead #{{ lead.id }}</div>
+    <div class="detail-meta">received {{ lead.received_at.replace('T', ' ').split('+')[0] }}</div>
+  </div>
+  <span class="badge status-{{ lead.status }}">{{ lead.status_label }}</span>
+</div>
+
+<div class="action-row" style="margin-top:0;margin-bottom:10px;">
+  {% if lead.category %}
+  <span class="badge category"><span class="dot cat-{{ lead.category }}"></span>{{ lead.category_label }}</span>
+  {% endif %}
+  {% if lead.urgency %}
+  <span class="badge urgency-{{ lead.urgency }}">{{ lead.urgency }} urgency</span>
+  {% endif %}
+  {% if lead.confidence %}
+  <span class="muted">confidence {{ (lead.confidence * 100)|round(0)|int }}%</span>
+  {% endif %}
+</div>
+
+<div class="raw-text-box">{{ lead.raw_text }}</div>
+
+{% if lead.status == 'needs_human' %}
+  <p class="empty-note" style="color:#9c1f1f;">Escalated -- no AI draft was generated. This lead needs a fully manual reply.</p>
+  <textarea id="reply-editor" class="draft-editor" placeholder="Write the reply..."></textarea>
+  <div class="action-row">
+    <button class="btn btn-approve" onclick="submitEdit({{ lead.id }})">Send Manual Reply</button>
+  </div>
+
+{% elif lead.status == 'drafted' %}
+  {% if lead.kb_context %}<div class="kb-context-note">Grounded with knowledge-base context: {{ lead.kb_context }}</div>{% endif %}
+  <div class="draft-box" id="draft-readonly">{{ lead.draft_text }}</div>
+  <textarea id="reply-editor" class="draft-editor" style="display:none;">{{ lead.draft_text }}</textarea>
+  <div class="action-row">
+    <button class="btn btn-approve" onclick="approveLead({{ lead.id }})">&#10003; Approve as-is</button>
+    <button class="btn btn-primary" onclick="toggleEdit()">&#9998; Edit</button>
+    <button class="btn btn-reject" onclick="rejectLead({{ lead.id }})">&#10005; Reject</button>
+  </div>
+  <div class="action-row" id="edit-actions" style="display:none;">
+    <button class="btn btn-approve" onclick="submitEdit({{ lead.id }})">Save edit &amp; send</button>
+    <button class="btn" onclick="toggleEdit()">Cancel</button>
+  </div>
+
+{% elif lead.status == 'rejected' %}
+  {% if lead.draft_text %}<div class="draft-box" style="opacity:0.6;"><strong>Rejected draft:</strong><br>{{ lead.draft_text }}</div>{% endif %}
+  <p class="empty-note" style="color:#9c1f1f;">Owner rejected the AI draft. Needs a manual reply.</p>
+  <textarea id="reply-editor" class="draft-editor" placeholder="Write the reply..."></textarea>
+  <div class="action-row">
+    <button class="btn btn-approve" onclick="submitEdit({{ lead.id }})">Send Manual Reply</button>
+  </div>
+
+{% elif lead.status == 'replied' %}
+  <div class="draft-box">{{ lead.final_text }}</div>
+  <p class="empty-note">Sent &middot; reply kind: <strong>{{ lead.reply_kind }}</strong>{% if lead.replied_at %} &middot; {{ lead.replied_at.replace('T',' ').split('+')[0] }}{% endif %}</p>
+
+{% else %}
+  <p class="empty-note">Awaiting classification...</p>
+{% endif %}

@@ -1,0 +1,103 @@
+{% if brain_ok %}
+<div class="banner ok">&#9679; AI brain online -- auto-triage and drafting active.</div>
+{% else %}
+<div class="banner down">&#9888; AI unavailable -- manual mode. New inquiries still arrive and can be handled by a human; auto-classify/draft is paused. ({{ brain_error }})</div>
+{% endif %}
+
+<div class="stat-row">
+  <div class="stat-tile tone-brand">
+    <div class="stat-value">{{ total_count }}</div>
+    <div class="stat-label">Total Leads</div>
+  </div>
+  <div class="stat-tile tone-critical">
+    <div class="stat-value">{{ needs_human|length }}</div>
+    <div class="stat-label">Needs Human</div>
+  </div>
+  <div class="stat-tile tone-warning">
+    <div class="stat-value">{{ awaiting_approval|length }}</div>
+    <div class="stat-label">Awaiting Approval</div>
+  </div>
+  <div class="stat-tile tone-good">
+    <div class="stat-value">{{ replied_today_count }}</div>
+    <div class="stat-label">Replied Today</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-value">{{ avg_response_label }}</div>
+    <div class="stat-label">Avg Response Time</div>
+  </div>
+  <div class="stat-tile tone-brand">
+    <div class="stat-value">{{ time_saved_minutes }}<span style="font-size:14px">m</span></div>
+    <div class="stat-label">Time Saved</div>
+  </div>
+</div>
+
+<div class="card queue-card needs-human">
+  <h2>&#128680; Needs Human Review <span class="count-chip">{{ needs_human|length }}</span></h2>
+  {% if needs_human %}
+    {% for lead in needs_human %}
+    <div class="lead-row" data-lead-id="{{ lead.id }}" onclick="openLead({{ lead.id }})">
+      <div><span class="customer">{{ lead.customer_name }}</span><span class="snippet">{{ lead.raw_text }}</span></div>
+      <span class="badge category"><span class="dot cat-{{ lead.category }}"></span>{{ lead.category_label }}</span>
+      <span class="badge urgency-{{ lead.urgency }}">{{ lead.urgency or '-' }}</span>
+      <span class="muted">{{ (lead.confidence * 100)|round(0) if lead.confidence else '-' }}{{ '%' if lead.confidence else '' }}</span>
+      <span class="badge status-{{ lead.status }}">{{ lead.status_label }}</span>
+      <span>&rarr;</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-note">Nothing flagged right now -- confidence is high and no high-urgency complaints are open.</p>
+  {% endif %}
+</div>
+
+<div class="card queue-card needs-followup">
+  <h2>&#9200; Needs Follow-up <span class="count-chip">{{ needs_followup|length }}</span></h2>
+  {% if needs_followup %}
+    {% for lead in needs_followup %}
+    <div class="lead-row" data-lead-id="{{ lead.id }}" onclick="openLead({{ lead.id }})">
+      <div><span class="customer">{{ lead.customer_name }}</span><span class="snippet">{{ lead.raw_text }}</span></div>
+      <span class="badge category"><span class="dot cat-{{ lead.category }}"></span>{{ lead.category_label }}</span>
+      <span class="badge urgency-{{ lead.urgency }}">{{ lead.urgency or '-' }}</span>
+      <span>{% if lead.followup_due %}<span class="followup-badge">&#9203; overdue</span>{% endif %}</span>
+      <span class="badge status-{{ lead.status }}">{{ lead.status_label }}</span>
+      <span>&rarr;</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-note">No untouched leads past the {{ followup_interval_seconds }}s follow-up window.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>All Leads <span class="count-chip">{{ rows|length }}</span></h2>
+  <div class="lead-list-head">
+    <span>Customer / Message</span><span>Category</span><span>Urgency</span><span>Confidence</span><span>Status</span><span></span>
+  </div>
+  {% for lead in rows %}
+  <div class="lead-row" data-lead-id="{{ lead.id }}" onclick="openLead({{ lead.id }})">
+    <div><span class="customer">{{ lead.customer_name }}</span><span class="snippet">{{ lead.raw_text }}</span></div>
+    <span class="badge category"><span class="dot cat-{{ lead.category }}"></span>{{ lead.category_label }}</span>
+    <span class="badge urgency-{{ lead.urgency }}">{{ lead.urgency or '-' }}</span>
+    <span class="muted">{{ (lead.confidence * 100)|round(0)|int if lead.confidence else '-' }}{{ '%' if lead.confidence else '' }}</span>
+    <span class="badge status-{{ lead.status }}">{{ lead.status_label }}</span>
+    <span>&rarr;</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card" id="audit-trail-card">
+  <h2>Full Audit Trail <span class="audit-total">{{ audit_total }} events, append-only JSONL</span></h2>
+  <div class="audit-log">
+    {% for ev in audit_events %}
+    <div class="audit-row">
+      <span class="audit-ts">{{ ev.ts.replace('T', ' ').split('+')[0] }}</span>
+      <span class="audit-event {{ ev.event }}">{{ ev.event.replace('_', ' ') }}</span>
+      <span class="audit-detail">
+        lead #{{ ev.inquiry_id }}
+        {%- if ev.details %}
+          {% for k, v in ev.details.items() %} &middot; {{ k }}: {{ v }}{% endfor %}
+        {%- endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>

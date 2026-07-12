@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest
+
+# Only needed for bin/record-demo (automated video capture of the
+# ?tour=1 self-running tour), not for the test suite. After installing,
+# also run `./venv/bin/playwright install chromium` once (downloads the
+# browser binary -- not a pip package).
+playwright

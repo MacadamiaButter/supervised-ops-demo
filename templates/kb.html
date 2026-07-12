@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Base -- Bluejay Property Management{% endblock %}
+{% block content %}
+<main class="kb-page">
+  <h1 style="font-size:20px;">Company Knowledge Base</h1>
+  <p class="muted">Searched with a small self-contained BM25 scorer -- no external embedding service, so this stays offline-demo-able. Every AI draft reply is grounded with the top matches for the customer's message.</p>
+  <div class="card search-box">
+    <form method="get" action="/kb">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search: pet deposit, late fee, gas leak, renewal...">
+    </form>
+  </div>
+
+  {% if q %}
+  <div class="card">
+    <h2>Results for "{{ q }}"</h2>
+    {% if results %}
+      {% for r in results %}
+      <div class="kb-doc">
+        <h3>{{ r.title }} <span class="kb-score">score {{ r.score }}</span></h3>
+        {{ r.body }}
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-note">No matches.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>All Snippets <span class="count-chip">{{ docs|length }}</span></h2>
+    {% for d in docs %}
+    <div class="kb-doc">
+      <h3>{{ d.title }}</h3>
+      {{ d.body }}
+    </div>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

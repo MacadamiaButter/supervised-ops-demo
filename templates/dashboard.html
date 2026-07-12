@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Dashboard -- Bluejay Property Management{% endblock %}
+{% block content %}
+<main class="dashboard">
+  <div class="dashboard-grid">
+    <div id="dashboard-live">
+      {% include "partials/leads_and_stats.html" %}
+    </div>
+    <aside class="detail-panel-wrap">
+      <div id="detail-panel" class="detail-panel empty">
+        <p class="muted">Select a lead to review its AI-drafted reply.</p>
+      </div>
+      <div class="card kb-mini">
+        <h3>Knowledge Base Search</h3>
+        <form class="kb-mini-form" onsubmit="return false">
+          <input id="kb-mini-q" type="text" placeholder="e.g. pet deposit, late fee, gas leak...">
+        </form>
+        <div id="kb-mini-results"></div>
+        <a href="/kb" class="kb-mini-link">Open full knowledge base &rarr;</a>
+      </div>
+      <div class="card summary-card">
+        <h3>Daily Owner Summary
+          <span class="info-dot" title="In production this runs automatically on a schedule (e.g. every morning at 7am) and is emailed to the owner. This button triggers it on demand for the demo.">?</span>
+        </h3>
+        <button id="gen-summary-btn" class="btn btn-primary" onclick="generateSummary()">Generate owner summary</button>
+        <div id="summary-result"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>startDashboardPolling();</script>
+{% endblock %}

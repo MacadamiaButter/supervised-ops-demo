@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Post a brand-new inquiry to the running app, so a screen recording can
+# show one arriving live and being classified/drafted by the real brain
+# in real time (a few seconds up to ~40s).
+#
+# Usage:
+#   bin/demo-inject "My kitchen faucet won't stop dripping."
+#   bin/demo-inject "text..." "Customer Name" "contact@example.com" "webform"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: bin/demo-inject \"inquiry text...\" [\"Customer Name\"] [\"contact\"] [\"channel\"]" >&2
+  exit 1
+fi
+
+RAW_TEXT="$1"
+CUSTOMER_NAME="${2:-Live Demo Customer}"
+CUSTOMER_CONTACT="${3:-demo.customer@example.com}"
+CHANNEL="${4:-webform}"
+HOST="${DEMO_HOST:-http://127.0.0.1:8300}"
+
+./venv/bin/python - "$RAW_TEXT" "$CUSTOMER_NAME" "$CUSTOMER_CONTACT" "$CHANNEL" "$HOST" << 'PYEOF'
+import json
+import sys
+import httpx
+
+raw_text, customer_name, customer_contact, channel, host = sys.argv[1:6]
+payload = {
+    "raw_text": raw_text,
+    "customer_name": customer_name,
+    "customer_contact": customer_contact,
+    "channel": channel,
+}
+print(f"Posting new inquiry to {host} ... (classification+draft can take a while)")
+with httpx.Client(trust_env=False, timeout=60.0) as client:
+    resp = client.post(f"{host}/api/inquiries", json=payload)
+resp.raise_for_status()
+print(json.dumps(resp.json(), indent=2))
+PYEOF

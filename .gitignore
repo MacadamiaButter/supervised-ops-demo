@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.py[cod]
+data/app.db
+data/audit.jsonl
+.pytest_cache/
+out/
+.env
+*.egg-info/
+.DS_Store

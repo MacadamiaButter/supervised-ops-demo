@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Bluejay Property Management{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">&#x1F426;</span>
+    <div class="brand-text">
+      <span class="brand-name">Bluejay Property Management</span>
+      <span class="brand-tagline">Supervised AI Operations</span>
+    </div>
+  </div>
+  <nav class="topnav">
+    <a href="/" class="{{ 'active' if request.url.path == '/' else '' }}">Dashboard</a>
+    <a href="/kb" class="{{ 'active' if request.url.path == '/kb' else '' }}">Knowledge Base</a>
+  </nav>
+</header>
+{% block content %}{% endblock %}
+<footer class="footer">
+  Demo build &middot; every customer-facing reply requires an explicit human approve / edit / reject &middot;
+  <a href="https://github.com" onclick="return false" class="footer-link">supervised-ops-demo</a>
+</footer>
+<script src="/static/app.js"></script>
+<script src="/static/tour.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

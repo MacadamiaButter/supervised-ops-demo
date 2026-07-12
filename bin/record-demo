@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# Automated video capture of the self-running tour (static/tour.js) via
+# Playwright + Chromium, at 1920x1080, converted to H.264 MP4 with ffmpeg.
+#
+# Defaults to CANNED mode (?tour=1&canned=1) -- deterministic fixture
+# responses (app/fixtures.py) instead of the real brain, so re-running
+# this script reliably produces a fresh, same-length take. Set
+# TOUR_MODE=live to record against the real brain instead (slower,
+# non-deterministic timing -- mainly useful to sanity-check the live path
+# looks right, not for the sales asset itself).
+#
+# Idempotent: re-running overwrites out/supervised-ops-demo.{webm,mp4}.
+#
+# Usage:
+#   bin/record-demo
+#   TOUR_MODE=live bin/record-demo
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+HOST="127.0.0.1"
+PORT="8300"
+BASE_URL="http://${HOST}:${PORT}"
+TOUR_MODE="${TOUR_MODE:-canned}"   # canned (default) | live
+OUT_DIR="$(pwd)/out"
+VIDEO_TMP_DIR="${OUT_DIR}/_video_tmp"
+WEBM_PATH="${OUT_DIR}/supervised-ops-demo.webm"
+MP4_PATH="${OUT_DIR}/supervised-ops-demo.mp4"
+SERVER_LOG="${OUT_DIR}/_server.log"
+
+if [[ ! -x ./venv/bin/python ]]; then
+  echo "no ./venv -- run: python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt" >&2
+  exit 1
+fi
+if ! ./venv/bin/python -c "import playwright" 2>/dev/null; then
+  echo "playwright not installed in venv -- run: ./venv/bin/pip install -r requirements-dev.txt && ./venv/bin/playwright install chromium" >&2
+  exit 1
+fi
+
+mkdir -p "$OUT_DIR"
+rm -rf "$VIDEO_TMP_DIR"
+mkdir -p "$VIDEO_TMP_DIR"
+
+echo "== 1/5 resetting demo state =="
+./venv/bin/python -m app.seed
+
+STARTED_SERVER=0
+SERVER_PID=""
+if ! curl -s -o /dev/null --max-time 2 "${BASE_URL}/"; then
+  echo "== 2/5 starting server (not already up) =="
+  # Stray proxy env vars (sometimes set in interactive shells for
+  # unrelated purposes) have no business near the app server either --
+  # strip them here too, for consistency.
+  env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy -u ALL_PROXY -u all_proxy \
+    ./venv/bin/python -m uvicorn app.main:app --host "$HOST" --port "$PORT" \
+    > "$SERVER_LOG" 2>&1 &
+  SERVER_PID=$!
+  STARTED_SERVER=1
+  up=0
+  for _ in $(seq 1 60); do
+    if curl -s -o /dev/null --max-time 1 "${BASE_URL}/"; then
+      up=1
+      break
+    fi
+    sleep 0.5
+  done
+  if [[ "$up" != "1" ]]; then
+    echo "server did not come up in time -- see ${SERVER_LOG}" >&2
+    exit 1
+  fi
+else
+  echo "== 2/5 server already up at ${BASE_URL}, using it as-is =="
+fi
+
+cleanup() {
+  if [[ "$STARTED_SERVER" == "1" && -n "$SERVER_PID" ]]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+TOUR_QS="tour=1"
+if [[ "$TOUR_MODE" == "canned" ]]; then
+  TOUR_QS="tour=1&canned=1"
+fi
+TOUR_URL="${BASE_URL}/?${TOUR_QS}"
+
+echo "== 3/5 recording (${TOUR_MODE} mode) against ${TOUR_URL} =="
+# Same proxy-stripping as above -- for the BROWSER's traffic to 127.0.0.1
+# this is a hard requirement, not just tidiness: a stray HTTPS_PROXY
+# would otherwise get inherited by the Chromium subprocess and break
+# every request the recorded page makes.
+env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy -u ALL_PROXY -u all_proxy \
+  ./venv/bin/python - "$TOUR_URL" "$VIDEO_TMP_DIR" << 'PYEOF'
+import sys
+
+from playwright.sync_api import sync_playwright
+
+tour_url, video_dir = sys.argv[1], sys.argv[2]
+SIZE = {"width": 1920, "height": 1080}
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    context = browser.new_context(
+        viewport=SIZE,
+        record_video_dir=video_dir,
+        record_video_size=SIZE,
+    )
+    page = context.new_page()
+    page.goto(tour_url, wait_until="load")
+    # static/tour.js sets this the instant the storyboard finishes.
+    page.wait_for_function("document.body.dataset.tourDone === '1'", timeout=180_000)
+    page.wait_for_timeout(1500)  # hold the closing card briefly before cutting
+    context.close()
+    print("video saved at:", page.video.path())
+    browser.close()
+PYEOF
+
+echo "== 4/5 collecting video file =="
+RAW_WEBM="$(find "$VIDEO_TMP_DIR" -name '*.webm' -print -quit)"
+if [[ -z "$RAW_WEBM" ]]; then
+  echo "no video file produced by Playwright -- see ${SERVER_LOG}" >&2
+  exit 1
+fi
+mv "$RAW_WEBM" "$WEBM_PATH"
+rm -rf "$VIDEO_TMP_DIR"
+echo "raw video: $WEBM_PATH"
+
+echo "== 5/5 converting to H.264 MP4 =="
+if command -v ffmpeg >/dev/null 2>&1; then
+  ffmpeg -y -loglevel error -i "$WEBM_PATH" \
+    -c:v libx264 -pix_fmt yuv420p -crf 20 -preset medium \
+    -movflags +faststart "$MP4_PATH"
+  echo "done: $MP4_PATH"
+else
+  echo "ffmpeg not found on PATH -- leaving raw video at $WEBM_PATH (no MP4 produced)"
+fi
