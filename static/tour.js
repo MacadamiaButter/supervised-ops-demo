@@ -227,7 +227,7 @@
     // 1) Dashboard overview
     await moveCursorTo(".stat-row");
     glow(".stat-row", true);
-    await caption("Every customer inquiry lands here — nothing is ever sent automatically.");
+    await caption("Every customer inquiry lands here: nothing is ever sent automatically.");
     glow(".stat-row", false);
     await sleep(BEAT_PAUSE_MS);
 
@@ -250,7 +250,7 @@
       await clickEl('[data-lead-id="' + newId + '"]');
       await sleep(450 * PACE);
       glow("#detail-panel", true);
-      await caption("The AI drafts a reply from your company's own policies — grounded, not improvised.");
+      await caption("The AI drafts a reply from your company's own policies: grounded, not improvised.");
       glow("#detail-panel", false);
 
       // 4) THE MONEY SHOT -- the approval gate
@@ -269,7 +269,7 @@
     // 5) Escalation queue (the safety story)
     await moveCursorTo(".queue-card.needs-human");
     glow(".queue-card.needs-human", true);
-    await caption("When the AI isn't sure — or the stakes are high — it doesn't guess. It escalates to a human instead.");
+    await caption("When the AI isn't sure (or the stakes are high), it doesn't guess. It escalates to a human instead.");
     // Prefer the pre-seeded high-urgency complaint (Robert Chu in the
     // stock seed data) so the beat matches DEMO-SCRIPT.md's "safety
     // story"; fall back to whichever needs-human row exists otherwise.
